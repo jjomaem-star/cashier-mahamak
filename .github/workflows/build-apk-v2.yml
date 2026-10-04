@@ -32,7 +32,34 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
+      - name: Fix duplicate theme
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: |
+          python3 - <<'PY'
+          import xml.etree.ElementTree as ET
+          from pathlib import Path
 
+          styles = Path("app/src/main/res/values/styles.xml")
+          themes = Path("app/src/main/res/values/themes.xml")
+
+          if styles.exists() and themes.exists():
+              sroot = ET.parse(styles).getroot()
+              names = {
+                  e.attrib.get("name")
+                  for e in sroot
+                  if e.tag == "style"
+              }
+
+              if "Theme.CashierMahamk" in names:
+                  tree = ET.parse(themes)
+                  root = tree.getroot()
+
+                  for e in list(root):
+                      if e.tag == "style" and e.attrib.get("name") == "Theme.CashierMahamk":
+                          root.remove(e)
+
+                  tree.write(themes, encoding="utf-8", xml_declaration=True)
+                  print("Duplicate theme fixed")
       - name: Build APK
         working-directory: ${{ env.PROJECT_DIR }}
         run: gradle assembleDebug
